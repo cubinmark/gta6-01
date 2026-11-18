@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Palm City Heat</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#1b2a33; font-family:Verdana, Geneva, sans-serif; }
+  #view { position:fixed; inset:0; width:100%; height:100%; display:block; }
+  .hud { position:fixed; z-index:5; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.7); pointer-events:none; }
+  #topLeft { top:12px; left:14px; font-size:15px; line-height:1.5; }
+  #cash { color:#7dff9a; font-weight:bold; font-size:19px; }
+  #stars { top:10px; right:14px; font-size:26px; letter-spacing:3px; color:#ffd94d; }
+  #stars .off { color:rgba(255,255,255,.25); }
+  #objective { top:12px; left:50%; transform:translateX(-50%); max-width:52%; text-align:center;
+    background:rgba(10,20,26,.55); border:1px solid rgba(255,217,77,.5); border-radius:8px; padding:7px 16px; font-size:14px; }
+  #objective b { color:#ffd94d; }
+  #minimap { position:fixed; left:14px; bottom:14px; z-index:5; border:2px solid rgba(255,255,255,.55);
+    border-radius:8px; background:#20343d; }
+  #speedo { right:16px; bottom:14px; font-size:15px; text-align:right; }
+  #speedo b { font-size:30px; color:#ffd94d; }
+  #prompt { left:50%; bottom:110px; transform:translateX(-50%); background:rgba(10,20,26,.65);
+    border-radius:6px; padding:8px 18px; font-size:15px; }
+  #prompt b { color:#ffd94d; background:#333; border-radius:4px; padding:1px 7px; }
+  #toast { left:50%; bottom:170px; transform:translateX(-50%); max-width:60%; text-align:center; font-size:15px;
+    background:rgba(10,20,26,.6); border-left:4px solid #ff9d5c; border-radius:6px; padding:9px 16px; }
+  #banner { left:50%; top:34%; transform:translate(-50%,-50%); text-align:center; font-size:44px; font-weight:bold;
+    letter-spacing:4px; color:#ffd94d; }
+  #banner small { display:block; font-size:16px; letter-spacing:1px; color:#fff; margin-top:8px; }
+  #vignette { position:fixed; inset:0; z-index:4; pointer-events:none; opacity:0;
+    background:radial-gradient(ellipse at center, transparent 55%, rgba(200,20,20,.55) 100%); }
+  #bustbar { left:50%; bottom:210px; transform:translateX(-50%); width:240px; text-align:center; font-size:13px; }
+  #bustfill { height:10px; background:#ff5252; width:0%; border-radius:5px; margin-top:4px; }
+  .screen { position:fixed; inset:0; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:linear-gradient(180deg, rgba(16,42,54,.88), rgba(64,32,44,.9)); color:#fff; text-align:center; padding:20px; }
+  .screen h1 { font-size:56px; margin:0 0 4px; letter-spacing:5px; color:#ffd94d; text-shadow:0 3px 0 #c2543a, 0 6px 18px rgba(0,0,0,.6); }
+  .screen h2 { font-size:34px; margin:0 0 10px; letter-spacing:4px; }
+  .screen p { max-width:560px; line-height:1.55; font-size:15px; margin:6px 0; }
+  .screen .controls { font-size:13px; color:#cfe8ef; columns:2; text-align:left; line-height:1.9; }
+  .screen button { pointer-events:auto; margin-top:16px; font-size:19px; font-weight:bold; padding:12px 42px; border:0;
+    border-radius:8px; background:#ffd94d; color:#40260a; cursor:pointer; }
+  .screen button:hover { background:#ffe27a; }
+  .hidden { display:none !important; }
+  #pauseScreen { background:rgba(8,16,22,.82); }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="vignette"></div>
+
+<div class="hud" id="topLeft"><div id="cash">$0</div><div id="story">Story: 0 / 3 missions</div><div id="health"></div></div>
+<div class="hud" id="stars"></div>
+<div class="hud" id="objective"></div>
+<canvas id="minimap" width="180" height="180"></canvas>
+<div class="hud" id="speedo"></div>
+<div class="hud hidden" id="prompt"></div>
+<div class="hud hidden" id="toast"></div>
+<div class="hud hidden" id="bustbar">BUSTED METER<div id="bustfill"></div></div>
+<div class="hud hidden" id="banner"></div>
+
+<div class="screen" id="startScreen">
+  <h1>PALM CITY HEAT</h1>
+  <p><b>Marisol Vega</b> runs the Marina Garage, and Palm City runs on favours.
+  Run her three jobs, outrun the Palm City PD, and the city is yours to roam.</p>
+  <p class="controls">
+    WASD — move / drive<br>Mouse (click view) — orbit camera<br>Q / E — rotate camera / enter &amp; exit car<br>
+    Shift — sprint &nbsp; Space — handbrake<br>Esc or P — pause &nbsp; M — mute
+  </p>
+  <p id="saveNote">Progress saved in this browser.</p>
+  <button id="startBtn">START ENGINE</button>
+  <p style="font-size:12px;color:#9fc4cf">An original low-poly open-world caper. Steal cars, dodge the heat, deliver the goods.</p>
+</div>
+
+<div class="screen hidden" id="pauseScreen">
+  <h2>PAUSED</h2>
+  <p id="pauseStats"></p>
+  <button id="resumeBtn">BACK TO THE STREETS</button>
+</div>
+
+<div class="screen hidden" id="endScreen">
+  <h2 id="endTitle">BUSTED</h2>
+  <p id="endText"></p>
+  <button id="respawnBtn">RESPAWN</button>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script src="src/world-city.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/vehicles.js"></script>
+<script src="src/player.js"></script>
+<script src="src/driving.js"></script>
+<script src="src/police.js"></script>
+<script src="src/missions.js"></script>
+<script src="src/hud.js"></script>
+<script src="src/game.js"></script>
+</body>
+</html>
